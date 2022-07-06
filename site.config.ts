@@ -21,7 +21,7 @@ export default siteConfig({
   github: 'CheeryGarden',
   linkedin: '',
   // newsletter: '#', // optional newsletter URL
-  youtube: '陶宏靳', // optional youtube channel name or `channel/UCGbXXXXXXXXXXXXXXXXXXXXXX`
+  youtube: 'channel/UCZ0Uuf7NKm2FgjajHIxS_ng', // optional youtube channel name or `channel/UCGbXXXXXXXXXXXXXXXXXXXXXX`
 
   // default notion icon and cover images for site-wide consistency (optional)
   // page-specific values will override these site-wide defaults

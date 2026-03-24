@@ -1,4 +1,4 @@
-# Samsara 车队报表完整分析（7类 42份报表）
+# Samsara 车队报表完整分析（8类 48份报表）
 
 > 链接：`https://cloud.samsara.com/o/7007185/fleet/reports/index`
 >
@@ -246,7 +246,7 @@
 
 ---
 
-## 第二类：合规类报表（Compliance / HOS / ELD Reports）— 7份
+## 第二类：合规类报表（Compliance / HOS / ELD Reports）— 8份
 
 ---
 
@@ -417,7 +417,29 @@
 
 ---
 
-### 报表 16：Unassigned HOS / Unassigned Driving Report（未分配工时报告）
+### 报表 16：Duty Status Summary Report（值勤状态汇总报告）
+
+**用途**：按驾驶员汇总每日各值勤状态的时间分布
+
+**数据源**：Samsara Driver App (ELD)
+
+| 字段名 | 类型 | 说明 | 数据来源 |
+|---|---|---|---|
+| Driver | string | 驾驶员名称 | Driver App |
+| Off Duty | duration (h:mm) | 休息状态时长 | Driver App 状态记录 |
+| Sleeper Berth | duration (h:mm) | 卧铺休息时长 | Driver App 状态记录 |
+| Driving | duration (h:mm) | 驾驶状态时长 | Driver App 状态记录 |
+| On Duty | duration (h:mm) | 值勤状态时长 | Driver App 状态记录 |
+| Yard Move | duration (h:mm) | 场内移动时长 | Driver App 标记 |
+| Personal Conveyance | duration (h:mm) | 个人出行时长 | Driver App 标记 |
+
+**筛选条件**：日期选择器、标签、驾驶状态（Active/Deactivated/All）、驾驶员搜索
+
+**KB 文档**：`kb.samsara.com/hc/en-us/articles/360020951291-Duty-Status-Summary-Report`
+
+---
+
+### 报表 17：Unassigned HOS / Unassigned Driving Report（未分配工时报告）
 
 **用途**：管理 ELD 记录中未关联驾驶员的驾驶时间段
 
@@ -438,11 +460,11 @@
 
 ---
 
-## 第三类：燃油与能源类报表（Fuel & Energy Reports）— 4份
+## 第三类：燃油与能源类报表（Fuel & Energy Reports）— 5份
 
 ---
 
-### 报表 17：Fuel & Energy Report（燃油能源报告）
+### 报表 18：Fuel & Energy Report（燃油能源报告）
 
 **用途**：按车辆或驾驶员显示燃油效率和能源使用情况
 
@@ -469,7 +491,7 @@
 
 ---
 
-### 报表 18：Fuel Purchases Report（燃油采购报告）
+### 报表 19：Fuel Purchases Report（燃油采购报告）
 
 **用途**：追踪和管理车队燃油采购记录
 
@@ -491,7 +513,7 @@
 
 ---
 
-### 报表 19：IFTA Report（国际燃油税报告）
+### 报表 20：IFTA Report（国际燃油税报告）
 
 **用途**：生成符合 IFTA 合规要求的跨辖区里程和燃油报告
 
@@ -526,7 +548,7 @@
 
 ---
 
-### 报表 20：Idling Report（怠速报告）
+### 报表 21：Idling Report（怠速报告）
 
 **用途**：列出所有车辆怠速事件，含持续时长和位置
 
@@ -549,11 +571,31 @@
 
 ---
 
+### 报表 22：Fuel & Energy Benchmarks Report（燃油效率基准对比报告）
+
+**用途**：将车队车辆的燃油效率与 Samsara 平台同品牌/同车型的匿名同行数据进行对比
+
+**数据源**：ECU 油耗 + OBD 里程 + Samsara 平台 20,000+ 客户匿名聚合数据
+
+| 字段名 | 类型 | 说明 | 数据来源 |
+|---|---|---|---|
+| Vehicle Name / ID | string | 车辆 | 车辆配置 |
+| Make / Model / Year (MMY) | string | 品牌/车型/年份 | 车辆配置 |
+| Your Fleet Avg MPG | float | 本车队该车型平均MPG | ECU 油耗 ÷ 里程 |
+| Peer Benchmark Avg MPG | float | 同行同车型平均MPG | 平台匿名聚合 |
+| Efficiency Gap (%) | float | 效率差距百分比 | 计算字段 |
+| Least Efficient Vehicles | ranked list | 效率最低的车辆排名 | MPG 排序 |
+| Average MPG by MMY | grouped | 按品牌/车型分组的平均MPG | 聚合计算 |
+
+**使用场景**：设定燃油效率目标、识别低效车辆、指导车辆采购决策
+
+---
+
 ## 第四类：活动与行程类报表（Activity & Trip Reports）— 5份
 
 ---
 
-### 报表 21：Activity Report（活动报告）
+### 报表 23：Activity Report（活动报告）
 
 **用途**：按车辆/驾驶员汇总每日活动概况
 
@@ -576,7 +618,7 @@
 
 ---
 
-### 报表 22：Trip History Report（行程历史报告）
+### 报表 24：Trip History Report（行程历史报告）
 
 **用途**：详细列出每次行程的起止位置、里程、时长等信息
 
@@ -600,7 +642,7 @@
 
 ---
 
-### 报表 23：Geofence Activity Report（地理围栏活动报告）
+### 报表 25：Geofence Activity Report（地理围栏活动报告）
 
 **用途**：追踪车辆进出地理围栏区域的时间和停留时长
 
@@ -627,7 +669,7 @@
 
 ---
 
-### 报表 24：After Hours Report（非工作时间使用报告）
+### 报表 26：After Hours Report（非工作时间使用报告）
 
 **用途**：追踪车辆在指定工作时间以外的使用情况
 
@@ -649,7 +691,7 @@
 
 ---
 
-### 报表 25：Driver Assignment Report（驾驶员分配报告）
+### 报表 27：Driver Assignment Report（驾驶员分配报告）
 
 **用途**：追踪驾驶员与车辆的分配关系及变更历史
 
@@ -672,7 +714,7 @@
 
 ---
 
-### 报表 26：Utilization Report（资产利用率报告）
+### 报表 28：Utilization Report（资产利用率报告）
 
 **用途**：衡量资产（车辆/拖车/设备）的使用率，支持车队规模优化决策
 
@@ -696,7 +738,7 @@
 
 ---
 
-### 报表 27：Driver Efficiency Report（驾驶员效率报告）
+### 报表 29：Driver Efficiency Report（驾驶员效率报告）
 
 **用途**：按驾驶员汇总燃油效率和驾驶效率指标
 
@@ -719,7 +761,7 @@
 
 ---
 
-### 报表 28：Vehicle Utilization Detail Report（车辆利用率明细报告）
+### 报表 30：Vehicle Utilization Detail Report（车辆利用率明细报告）
 
 **用途**：按单个车辆维度细化利用率分析
 
@@ -744,7 +786,7 @@
 
 ---
 
-### 报表 29：Service Logs Report（维修服务日志报告）
+### 报表 31：Service Logs Report（维修服务日志报告）
 
 **用途**：记录和追踪所有车辆维修服务活动
 
@@ -767,7 +809,7 @@
 
 ---
 
-### 报表 30：Fault Codes Report — OBD-II（乘用车故障码报告）
+### 报表 32：Fault Codes Report — OBD-II（乘用车故障码报告）
 
 **用途**：监控和追踪车辆 OBD-II 诊断故障码
 
@@ -795,7 +837,7 @@
 
 ---
 
-### 报表 31：Fault Codes Report — J1939（重型车故障码报告）
+### 报表 33：Fault Codes Report — J1939（重型车故障码报告）
 
 **用途**：监控重型商用车辆 J1939 标准诊断故障码
 
@@ -821,7 +863,7 @@
 
 ---
 
-### 报表 32：Tell Tale Status Report（仪表盘警告灯状态报告）
+### 报表 34：Tell Tale Status Report（仪表盘警告灯状态报告）
 
 **用途**：监控车辆仪表盘上的警告指示灯状态
 
@@ -840,7 +882,7 @@
 
 ---
 
-### 报表 33：DVIR Defects Report（车辆检查缺陷报告）
+### 报表 35：DVIR Defects Report（车辆检查缺陷报告）
 
 **用途**：追踪所有 DVIR 中报告的缺陷及其修复状态
 
@@ -865,7 +907,7 @@
 
 ---
 
-### 报表 34：Preventive Maintenance Schedule Report（预防性维护计划报告）
+### 报表 36：Preventive Maintenance Schedule Report（预防性维护计划报告）
 
 **用途**：基于里程或引擎运行小时数追踪预防性维护计划执行情况
 
@@ -888,11 +930,76 @@
 
 ---
 
-## 第七类：文档、自定义及其他报表（Documents, Custom & Other Reports）— 8份
+## 第七类：设备健康类报表（Device Health Reports）— 3份
 
 ---
 
-### 报表 35：Documents Report（文档表单报告）
+### 报表 37：Gateway Health Report（网关设备健康报告）
+
+**用途**：监控车辆网关设备的在线状态、连接状态和健康状况
+
+**数据源**：Vehicle Gateway / Asset Gateway 设备遥测
+
+| 字段名 | 类型 | 说明 | 数据来源 |
+|---|---|---|---|
+| Vehicle / Asset Name | string | 关联的车辆或资产 | 配置 |
+| Gateway Serial | string | 网关设备序列号 | 设备配置 |
+| Gateway Model | string | 网关型号（VG34/VG54/AG46等） | 设备配置 |
+| Health Status | enum | 健康状态：Healthy / Needs Attention / Not Installed | 综合判定 |
+| Last Known Location | string | 设备最后已知位置 | GPS |
+| Last Connected Time | datetime | 设备最后连接时间 | 设备心跳 |
+| Cell Connectivity Status | enum | 蜂窝网络连接状态 | 通信模块 |
+| Vehicle Battery Level | float | 车辆电池电压 | `batteryMilliVolts` |
+| Gateway Battery Level | float | 网关设备电池电压 | 设备遥测 |
+| Recommended Action | string | 建议的修复措施 | 系统诊断 |
+
+**KB 文档**：`kb.samsara.com/hc/en-us/articles/33583268473997-Device-Health-Reports`
+
+---
+
+### 报表 38：Camera Health Report（摄像头健康报告）
+
+**用途**：监控 AI Dash Cam 的在线状态、连接状态和录制健康
+
+**数据源**：AI Dash Cam (CM31/CM32) 设备遥测
+
+| 字段名 | 类型 | 说明 | 数据来源 |
+|---|---|---|---|
+| Vehicle Name | string | 关联车辆 | 车辆配置 |
+| Camera Serial | string | 摄像头序列号 | 设备配置 |
+| Camera Model | string | 摄像头型号（CM31/CM32） | 设备配置 |
+| Health Status | enum | 健康状态：Healthy / Needs Attention / Not Installed | 综合判定 |
+| Camera Last Connected | datetime | 摄像头最后连接时间 | 设备心跳 |
+| VG Last Connected | datetime | 关联网关最后连接时间 | 网关心跳 |
+| Recording Status | enum | 录制状态 | 摄像头遥测 |
+| Disconnection Reason | string | 断连原因分析 | 系统诊断 |
+| Recommended Action | string | 建议的修复措施 | 系统诊断 |
+
+---
+
+### 报表 39：Sensor Health Report（传感器健康报告）
+
+**用途**：监控连接到网关的各类传感器的健康状态
+
+**数据源**：连接到 Vehicle/Asset Gateway 的传感器设备遥测
+
+| 字段名 | 类型 | 说明 | 数据来源 |
+|---|---|---|---|
+| Vehicle / Asset Name | string | 关联的车辆或资产 | 配置 |
+| Sensor Type | string | 传感器类型（温度/门开关/胎压/油位等） | 设备配置 |
+| Sensor ID | string | 传感器标识 | 设备配置 |
+| Health Status | enum | 健康状态 | 综合判定 |
+| Last Reading Time | datetime | 最后一次读数时间 | 传感器遥测 |
+| Battery Status | enum | 传感器电池状态 | 传感器遥测 |
+| Signal Quality | enum | 信号质量 | 通信模块 |
+
+---
+
+## 第八类：文档、自定义及其他报表（Documents, Custom & Other Reports）— 9份
+
+---
+
+### 报表 40：Documents Report（文档表单报告）
 
 **用途**：管理驾驶员通过 Driver App 提交的各种文档表单
 
@@ -927,7 +1034,7 @@
 
 ---
 
-### 报表 36：Custom Reports（自定义报表）
+### 报表 41：Custom Reports（自定义报表）
 
 **用途**：通过拖拽式报表构建器创建个性化报表
 
@@ -951,7 +1058,7 @@
 
 ---
 
-### 报表 37：Scheduled Reports（定时报表）
+### 报表 42：Scheduled Reports（定时报表）
 
 **用途**：自动定时发送报表至指定邮箱
 
@@ -971,7 +1078,7 @@
 
 ---
 
-### 报表 38：Year Summary Report（年度总结报告）
+### 报表 43：Year Summary Report（年度总结报告）
 
 **用途**：全年度运营指标回顾，对比 Samsara 社区基准
 
@@ -994,7 +1101,28 @@
 
 ---
 
-### 报表 39：Tachograph Reports — Live Driver's Hours（行驶记录仪实时工时报告，仅EU）
+### 报表 44：Samsara Network Activity Report for Asset Tags（资产标签网络活动报告）
+
+**用途**：追踪 Samsara Asset Tags (AT) 的网络检测活动和可见性
+
+**数据源**：Samsara Asset Tag BLE 广播 + Samsara 网络网关检测
+
+| 字段名 | 类型 | 说明 | 数据来源 |
+|---|---|---|---|
+| Asset Tag Name / ID | string | 资产标签名称和标识 | 资产配置 |
+| Asset Tag Model | string | 标签型号（AT11/AT11X/AT XS） | 设备配置 |
+| Last Detected Time | datetime | 最后一次被网关检测到的时间 | BLE 检测 |
+| Last Known Location | string | 最后已知位置（通过附近网关 GPS 近似定位） | 网关 GPS → BLE 近似 |
+| Detection Count | int | 时段内被检测到的次数 | BLE 广播计数 |
+| Detecting Gateways | array | 检测到此标签的网关列表 | 网关设备 |
+| Battery Status | enum | 标签电池状态 | 标签遥测 |
+| Geofence Events | array | 进出围栏事件 | GPS 近似 + 围栏判定 |
+
+**KB 文档**：`kb.samsara.com/hc/en-us/articles/39172839729037-Samsara-Network-Activity-Report-for-Asset-Tags-ATs`
+
+---
+
+### 报表 45：Tachograph Reports — Live Driver's Hours（行驶记录仪实时工时报告，仅EU）
 
 **用途**：实时查看 EU 驾驶员的行驶记录仪活动状态
 
@@ -1013,7 +1141,7 @@
 
 ---
 
-### 报表 40：Tachograph Reports — Historical Driver's Hours（行驶记录仪历史工时报告，仅EU）
+### 报表 46：Tachograph Reports — Historical Driver's Hours（行驶记录仪历史工时报告，仅EU）
 
 **用途**：查看 EU 驾驶员过去一段时间的行驶记录仪活动记录
 
@@ -1038,7 +1166,7 @@
 
 ---
 
-### 报表 41：Tachograph — Unassigned Driving Report（行驶记录仪未分配驾驶报告，仅EU）
+### 报表 47：Tachograph — Unassigned Driving Report（行驶记录仪未分配驾驶报告，仅EU）
 
 **用途**：追踪行驶记录仪中未关联驾驶员卡的驾驶时段
 
@@ -1055,7 +1183,7 @@
 
 ---
 
-### 报表 42：Tachograph — Infringement Reports（行驶记录仪违规报告，仅EU）
+### 报表 48：Tachograph — Infringement Reports（行驶记录仪违规报告，仅EU）
 
 **用途**：列出 EU 行驶记录仪法规下的驾驶时间违规
 
@@ -1079,13 +1207,14 @@
 | 类别 | 报表数量 | 报表编号 |
 |---|---|---|
 | 安全类（Safety） | 9 | #1–#9 |
-| 合规类（Compliance/HOS/ELD） | 7 | #10–#16 |
-| 燃油能源类（Fuel & Energy） | 4 | #17–#20 |
-| 活动行程类（Activity & Trip） | 5 | #21–#25 |
-| 利用率效率类（Utilization & Efficiency） | 3 | #26–#28 |
-| 维护类（Maintenance） | 6 | #29–#34 |
-| 文档/自定义/其他（Documents/Custom/Other） | 8 | #35–#42 |
-| **合计** | **42** | |
+| 合规类（Compliance/HOS/ELD） | 8 | #10–#17 |
+| 燃油能源类（Fuel & Energy） | 5 | #18–#22 |
+| 活动行程类（Activity & Trip） | 5 | #23–#27 |
+| 利用率效率类（Utilization & Efficiency） | 3 | #28–#30 |
+| 维护类（Maintenance） | 6 | #31–#36 |
+| 设备健康类（Device Health） | 3 | #37–#39 |
+| 文档/自定义/其他（Documents/Custom/Other） | 9 | #40–#48 |
+| **合计** | **48** | |
 
 ---
 

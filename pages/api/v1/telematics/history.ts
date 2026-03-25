@@ -1,18 +1,24 @@
 /**
  * @file history.ts
  * @brief Telematics history data API - GET /api/v1/telematics/history
- * @version 1.0.0
+ * @version 1.1.0
  * @date 2026-03-25
  */
 import { NextApiRequest, NextApiResponse } from 'next'
 
-import { withApiMiddleware, sendSuccess } from '../../../../lib/api/middleware'
-import { PaginatedResult, TelematicsSnapshot } from '../../../../lib/api/types'
+import { fetchTelematicsHistory } from '../../../../lib/api/iot-adapter'
+import {
+  AuthenticatedRequest,
+  withApiMiddleware,
+  sendSuccess
+} from '../../../../lib/api/middleware'
+import { canAccessDevice } from '../../../../lib/api/tenant'
 
 async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ): Promise<void> {
+  const authReq = req as AuthenticatedRequest
   const { deviceId, startTime, endTime, page = '1', pageSize = '50' } =
     req.query as Record<string, string>
 
@@ -22,7 +28,18 @@ async function handler(
       message: 'deviceId, startTime, and endTime are required',
       data: null,
       timestamp: Date.now(),
-      requestId: (req as any).requestId
+      requestId: authReq.requestId
+    })
+    return
+  }
+
+  if (!canAccessDevice(authReq.tenant, deviceId)) {
+    res.status(403).json({
+      code: 403,
+      message: 'Access denied to this device',
+      data: null,
+      timestamp: Date.now(),
+      requestId: authReq.requestId
     })
     return
   }
@@ -35,7 +52,7 @@ async function handler(
       message: 'Invalid time range',
       data: null,
       timestamp: Date.now(),
-      requestId: (req as any).requestId
+      requestId: authReq.requestId
     })
     return
   }
@@ -47,21 +64,19 @@ async function handler(
       message: 'Time range cannot exceed 7 days per request',
       data: null,
       timestamp: Date.now(),
-      requestId: (req as any).requestId
+      requestId: authReq.requestId
     })
     return
   }
 
-  // TODO: Query time-series database
-  const result: PaginatedResult<TelematicsSnapshot> = {
-    items: [],
-    total: 0,
-    page: Math.max(1, parseInt(page, 10) || 1),
-    pageSize: Math.min(200, Math.max(1, parseInt(pageSize, 10) || 50)),
-    totalPages: 0
-  }
+  const result = await fetchTelematicsHistory(
+    deviceId,
+    { startTime: start, endTime: end },
+    Math.max(1, parseInt(page, 10) || 1),
+    Math.min(200, Math.max(1, parseInt(pageSize, 10) || 50))
+  )
 
-  sendSuccess(res, result, (req as any).requestId)
+  sendSuccess(res, result, authReq.requestId)
 }
 
 export default withApiMiddleware(handler, {

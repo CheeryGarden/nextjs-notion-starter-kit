@@ -1,12 +1,18 @@
 /**
  * @file clips.ts
  * @brief Video clips (alarm-triggered recordings) query API - GET /api/v1/video/clips
- * @version 1.0.0
+ *        Requires Plan 3 or 4
+ * @version 1.1.0
  * @date 2026-03-25
  */
 import { NextApiRequest, NextApiResponse } from 'next'
 
-import { withApiMiddleware, sendSuccess } from '../../../../lib/api/middleware'
+import {
+  AuthenticatedRequest,
+  withApiMiddleware,
+  sendSuccess
+} from '../../../../lib/api/middleware'
+import { canAccessDevice } from '../../../../lib/api/tenant'
 import {
   VideoClip,
   VideoClipQueryParams,
@@ -19,6 +25,7 @@ async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ): Promise<void> {
+  const authReq = req as AuthenticatedRequest
   const {
     deviceId,
     channel,
@@ -34,7 +41,18 @@ async function handler(
       message: 'deviceId, startTime, and endTime are required',
       data: null,
       timestamp: Date.now(),
-      requestId: (req as any).requestId
+      requestId: authReq.requestId
+    })
+    return
+  }
+
+  if (!canAccessDevice(authReq.tenant, deviceId)) {
+    res.status(403).json({
+      code: 403,
+      message: 'Access denied to this device',
+      data: null,
+      timestamp: Date.now(),
+      requestId: authReq.requestId
     })
     return
   }
@@ -45,12 +63,12 @@ async function handler(
       message: `channel must be one of: ${VALID_CHANNELS.join(', ')}`,
       data: null,
       timestamp: Date.now(),
-      requestId: (req as any).requestId
+      requestId: authReq.requestId
     })
     return
   }
 
-  const _params: VideoClipQueryParams = {
+  const params: VideoClipQueryParams = {
     deviceId,
     channel: channel as VideoClipQueryParams['channel'],
     startTime: parseInt(startTime, 10),
@@ -59,20 +77,21 @@ async function handler(
     pageSize: Math.min(100, Math.max(1, parseInt(pageSize, 10) || 20))
   }
 
-  // TODO: Query video clips from storage
+  // TODO: Query video clips from streaming media server via HTTP API
   const result: PaginatedResult<VideoClip> = {
     items: [],
     total: 0,
-    page: _params.page,
-    pageSize: _params.pageSize,
+    page: params.page,
+    pageSize: params.pageSize,
     totalPages: 0
   }
 
-  sendSuccess(res, result, (req as any).requestId)
+  sendSuccess(res, result, authReq.requestId)
 }
 
 export default withApiMiddleware(handler, {
   methods: ['GET'],
   requireAuth: true,
+  requireVideo: true,
   rateLimit: { windowMs: 60_000, maxRequests: 30 }
 })

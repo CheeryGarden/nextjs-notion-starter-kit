@@ -1,17 +1,24 @@
 /**
  * @file trajectory.ts
  * @brief Device trajectory (track) query API - GET /api/v1/telematics/trajectory
- * @version 1.0.0
+ * @version 1.1.0
  * @date 2026-03-25
  */
 import { NextApiRequest, NextApiResponse } from 'next'
 
-import { withApiMiddleware, sendSuccess } from '../../../../lib/api/middleware'
+import { fetchTrajectory } from '../../../../lib/api/iot-adapter'
+import {
+  AuthenticatedRequest,
+  withApiMiddleware,
+  sendSuccess
+} from '../../../../lib/api/middleware'
+import { canAccessDevice } from '../../../../lib/api/tenant'
 
 async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ): Promise<void> {
+  const authReq = req as AuthenticatedRequest
   const { deviceId, startTime, endTime } = req.query as Record<string, string>
 
   if (!deviceId || !startTime || !endTime) {
@@ -20,7 +27,18 @@ async function handler(
       message: 'deviceId, startTime, and endTime are required',
       data: null,
       timestamp: Date.now(),
-      requestId: (req as any).requestId
+      requestId: authReq.requestId
+    })
+    return
+  }
+
+  if (!canAccessDevice(authReq.tenant, deviceId)) {
+    res.status(403).json({
+      code: 403,
+      message: 'Access denied to this device',
+      data: null,
+      timestamp: Date.now(),
+      requestId: authReq.requestId
     })
     return
   }
@@ -33,7 +51,7 @@ async function handler(
       message: 'Invalid time range',
       data: null,
       timestamp: Date.now(),
-      requestId: (req as any).requestId
+      requestId: authReq.requestId
     })
     return
   }
@@ -45,23 +63,17 @@ async function handler(
       message: 'Trajectory query range cannot exceed 24 hours',
       data: null,
       timestamp: Date.now(),
-      requestId: (req as any).requestId
+      requestId: authReq.requestId
     })
     return
   }
 
-  // TODO: Query GPS trajectory data from storage
-  sendSuccess(
-    res,
-    {
-      deviceId,
-      points: [],
-      totalDistance: 0,
-      startTime: start,
-      endTime: end
-    },
-    (req as any).requestId
-  )
+  const trajectory = await fetchTrajectory(deviceId, {
+    startTime: start,
+    endTime: end
+  })
+
+  sendSuccess(res, trajectory, authReq.requestId)
 }
 
 export default withApiMiddleware(handler, {

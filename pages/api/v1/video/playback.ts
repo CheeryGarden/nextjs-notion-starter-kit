@@ -1,12 +1,18 @@
 /**
  * @file playback.ts
  * @brief Video playback query API - GET /api/v1/video/playback
- * @version 1.0.0
+ *        Requires Plan 3 or 4
+ * @version 1.1.0
  * @date 2026-03-25
  */
 import { NextApiRequest, NextApiResponse } from 'next'
 
-import { withApiMiddleware, sendSuccess } from '../../../../lib/api/middleware'
+import {
+  AuthenticatedRequest,
+  withApiMiddleware,
+  sendSuccess
+} from '../../../../lib/api/middleware'
+import { canAccessDevice } from '../../../../lib/api/tenant'
 
 const VALID_CHANNELS = ['front', 'cabin', 'left', 'right', 'rear']
 
@@ -14,6 +20,7 @@ async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ): Promise<void> {
+  const authReq = req as AuthenticatedRequest
   const { deviceId, channel, startTime, endTime } = req.query as Record<
     string,
     string
@@ -25,7 +32,18 @@ async function handler(
       message: 'deviceId, channel, startTime, and endTime are required',
       data: null,
       timestamp: Date.now(),
-      requestId: (req as any).requestId
+      requestId: authReq.requestId
+    })
+    return
+  }
+
+  if (!canAccessDevice(authReq.tenant, deviceId)) {
+    res.status(403).json({
+      code: 403,
+      message: 'Access denied to this device',
+      data: null,
+      timestamp: Date.now(),
+      requestId: authReq.requestId
     })
     return
   }
@@ -36,12 +54,12 @@ async function handler(
       message: `channel must be one of: ${VALID_CHANNELS.join(', ')}`,
       data: null,
       timestamp: Date.now(),
-      requestId: (req as any).requestId
+      requestId: authReq.requestId
     })
     return
   }
 
-  // TODO: Query video playback from media server
+  // TODO: Proxy to existing streaming media server via HTTP API
   sendSuccess(
     res,
     {
@@ -52,12 +70,13 @@ async function handler(
       startTime: parseInt(startTime, 10),
       endTime: parseInt(endTime, 10)
     },
-    (req as any).requestId
+    authReq.requestId
   )
 }
 
 export default withApiMiddleware(handler, {
   methods: ['GET'],
   requireAuth: true,
+  requireVideo: true,
   rateLimit: { windowMs: 60_000, maxRequests: 20 }
 })

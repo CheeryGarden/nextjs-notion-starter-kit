@@ -1,22 +1,25 @@
 /**
  * @file index.ts
  * @brief Alarm events query API - GET /api/v1/alarms
- * @version 1.0.0
+ * @version 1.1.0
  * @date 2026-03-25
  */
 import { NextApiRequest, NextApiResponse } from 'next'
 
-import { withApiMiddleware, sendSuccess } from '../../../../lib/api/middleware'
+import { fetchAlarms } from '../../../../lib/api/iot-adapter'
 import {
-  AlarmEvent,
-  AlarmQueryParams,
-  PaginatedResult
-} from '../../../../lib/api/types'
+  AuthenticatedRequest,
+  withApiMiddleware,
+  sendSuccess
+} from '../../../../lib/api/middleware'
+import { canAccessDevice } from '../../../../lib/api/tenant'
+import { AlarmQueryParams } from '../../../../lib/api/types'
 
 async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ): Promise<void> {
+  const authReq = req as AuthenticatedRequest
   const {
     deviceId,
     type,
@@ -34,12 +37,23 @@ async function handler(
       message: 'startTime and endTime are required',
       data: null,
       timestamp: Date.now(),
-      requestId: (req as any).requestId
+      requestId: authReq.requestId
     })
     return
   }
 
-  const _params: AlarmQueryParams = {
+  if (deviceId && !canAccessDevice(authReq.tenant, deviceId)) {
+    res.status(403).json({
+      code: 403,
+      message: 'Access denied to this device',
+      data: null,
+      timestamp: Date.now(),
+      requestId: authReq.requestId
+    })
+    return
+  }
+
+  const params: AlarmQueryParams = {
     deviceId,
     type: type as AlarmQueryParams['type'],
     severity: severity as AlarmQueryParams['severity'],
@@ -50,16 +64,8 @@ async function handler(
     pageSize: Math.min(100, Math.max(1, parseInt(pageSize, 10) || 20))
   }
 
-  // TODO: Query alarm events from storage
-  const result: PaginatedResult<AlarmEvent> = {
-    items: [],
-    total: 0,
-    page: _params.page,
-    pageSize: _params.pageSize,
-    totalPages: 0
-  }
-
-  sendSuccess(res, result, (req as any).requestId)
+  const result = await fetchAlarms(params, authReq.tenant.allowedDeviceIds)
+  sendSuccess(res, result, authReq.requestId)
 }
 
 export default withApiMiddleware(handler, {

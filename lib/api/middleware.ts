@@ -1,13 +1,15 @@
 /**
  * @file middleware.ts
  * @brief API authentication and common middleware for ofstar Connect Core Open API
- * @version 1.0.0
+ *        Supports multi-tenant isolation for 10 concurrent third-party platforms
+ * @version 1.1.0
  * @date 2026-03-25
  */
 import crypto from 'crypto'
 
 import { NextApiRequest, NextApiResponse } from 'next'
 
+import { getTenantConfig, TenantConfig } from './tenant'
 import { ApiResponse } from './types'
 
 type ApiHandler = (
@@ -18,23 +20,37 @@ type ApiHandler = (
 interface MiddlewareOptions {
   methods?: string[]
   requireAuth?: boolean
+  requireVideo?: boolean
   rateLimit?: { windowMs: number; maxRequests: number }
+}
+
+export interface AuthenticatedRequest extends NextApiRequest {
+  requestId: string
+  tenant: TenantConfig
+  appId: string
 }
 
 const DEFAULT_OPTIONS: MiddlewareOptions = {
   methods: ['GET'],
-  requireAuth: true
+  requireAuth: true,
+  requireVideo: false
 }
 
 /**
- * Generates a unique request ID for tracing
+ * @brief Generates a unique request ID for tracing
+ * @return UUID v4 string
  */
 function generateRequestId(): string {
   return crypto.randomUUID()
 }
 
 /**
- * Sends a standardized JSON error response
+ * @brief Sends a standardized JSON error response
+ * @param[in] res response object
+ * @param[in] statusCode HTTP status code
+ * @param[in] message error message
+ * @param[in] requestId request tracing ID
+ * @return none
  */
 function sendError(
   res: NextApiResponse,
@@ -53,7 +69,12 @@ function sendError(
 }
 
 /**
- * Sends a standardized JSON success response
+ * @brief Sends a standardized JSON success response
+ * @param[in] res response object
+ * @param[in] data response payload
+ * @param[in] requestId request tracing ID
+ * @param[in] statusCode HTTP status code (default 200)
+ * @return none
  */
 export function sendSuccess<T>(
   res: NextApiResponse,
@@ -72,34 +93,37 @@ export function sendSuccess<T>(
 }
 
 /**
- * Validates the HMAC signature on an incoming request.
+ * @brief Validates the HMAC signature on an incoming request.
  *
  * Expected headers:
  *   X-App-Id:    the client's application ID
- *   X-Timestamp: Unix-ms timestamp (must be within ±5 min of server time)
+ *   X-Timestamp: Unix-ms timestamp (must be within +/-5 min of server time)
  *   X-Nonce:     unique nonce per request
  *   X-Signature: HMAC-SHA256( appId + timestamp + nonce + body )
+ *
+ * @param[in] req incoming request
+ * @return appId if valid, null otherwise
  */
-function validateSignature(req: NextApiRequest): boolean {
+function validateSignature(req: NextApiRequest): string | null {
   const appId = req.headers['x-app-id'] as string
   const timestamp = req.headers['x-timestamp'] as string
   const nonce = req.headers['x-nonce'] as string
   const signature = req.headers['x-signature'] as string
 
   if (!appId || !timestamp || !nonce || !signature) {
-    return false
+    return null
   }
 
   const now = Date.now()
   const requestTime = parseInt(timestamp, 10)
   const FIVE_MINUTES_MS = 5 * 60 * 1000
   if (isNaN(requestTime) || Math.abs(now - requestTime) > FIVE_MINUTES_MS) {
-    return false
+    return null
   }
 
   const appSecret = lookupAppSecret(appId)
   if (!appSecret) {
-    return false
+    return null
   }
 
   const bodyStr =
@@ -110,25 +134,51 @@ function validateSignature(req: NextApiRequest): boolean {
     .update(payload)
     .digest('hex')
 
-  return crypto.timingSafeEqual(
-    Buffer.from(signature, 'hex'),
-    Buffer.from(expectedSig, 'hex')
-  )
+  try {
+    const sigBuf = Buffer.from(signature, 'hex')
+    const expectedBuf = Buffer.from(expectedSig, 'hex')
+    if (sigBuf.length !== expectedBuf.length) {
+      return null
+    }
+    if (!crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+      return null
+    }
+  } catch {
+    return null
+  }
+
+  return appId
 }
 
 /**
- * Resolves the app secret for a given appId.
- * Production: look up from KMS, database, or secure config center.
+ * @brief Resolves the app secret for a given appId.
+ *        Production: look up from KMS, database, or secure config center.
+ * @param[in] appId the application identifier
+ * @return app secret or null
  */
 function lookupAppSecret(appId: string): string | null {
-  const secrets: Record<string, string | undefined> = {
-    [process.env.OFSTAR_APP_ID ?? '']: process.env.OFSTAR_APP_SECRET
-  }
-  return secrets[appId] ?? null
+  const secretEnvKey = `APP_SECRET_${appId.toUpperCase().replace(/-/g, '_')}`
+  return process.env[secretEnvKey] ?? null
 }
 
-const rateLimitStore = new Map<string, { count: number; resetAt: number }>()
+/* ---------------------------------------------------------------------------
+ * Per-tenant rate limiting (supports 10 concurrent platforms)
+ * --------------------------------------------------------------------------- */
 
+interface RateLimitEntry {
+  count: number
+  resetAt: number
+}
+
+const rateLimitStore = new Map<string, RateLimitEntry>()
+
+/**
+ * @brief Checks if a request is within the rate limit for its tenant
+ * @param[in] key rate limit key (typically appId + endpoint)
+ * @param[in] windowMs time window in milliseconds
+ * @param[in] maxRequests max requests per window
+ * @return true if within limit
+ */
 function checkRateLimit(
   key: string,
   windowMs: number,
@@ -150,8 +200,25 @@ function checkRateLimit(
   return true
 }
 
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, entry] of rateLimitStore.entries()) {
+    if (now > entry.resetAt) {
+      rateLimitStore.delete(key)
+    }
+  }
+}, 60_000)
+
+/* ---------------------------------------------------------------------------
+ * Main middleware wrapper
+ * --------------------------------------------------------------------------- */
+
 /**
- * Wraps an API handler with authentication, method validation, and rate limiting
+ * @brief Wraps an API handler with authentication, multi-tenant isolation,
+ *        method validation, and rate limiting
+ * @param[in] handler the API handler to wrap
+ * @param[in] options middleware configuration
+ * @return wrapped handler
  */
 export function withApiMiddleware(
   handler: ApiHandler,
@@ -168,30 +235,71 @@ export function withApiMiddleware(
       return
     }
 
-    if (opts.requireAuth && !validateSignature(req)) {
-      sendError(res, 401, 'Authentication failed: invalid signature', requestId)
-      return
-    }
-
-    if (opts.rateLimit) {
-      const clientKey =
-        (req.headers['x-app-id'] as string) ||
-        req.socket.remoteAddress ||
-        'anonymous'
-      if (
-        !checkRateLimit(clientKey, opts.rateLimit.windowMs, opts.rateLimit.maxRequests)
-      ) {
-        sendError(res, 429, 'Rate limit exceeded', requestId)
+    if (opts.requireAuth) {
+      const appId = validateSignature(req)
+      if (!appId) {
+        sendError(
+          res,
+          401,
+          'Authentication failed: invalid signature',
+          requestId
+        )
         return
       }
-    }
 
-    ;(req as any).requestId = requestId
+      const tenant = await getTenantConfig(appId)
+      if (!tenant || !tenant.isActive) {
+        sendError(res, 403, 'Tenant is inactive or not found', requestId)
+        return
+      }
+
+      if (opts.requireVideo) {
+        const { hasVideoAccess } = await import('./tenant')
+        if (!hasVideoAccess(tenant)) {
+          sendError(
+            res,
+            403,
+            'Video features are not available for your plan',
+            requestId
+          )
+          return
+        }
+      }
+
+      if (opts.rateLimit) {
+        const limitKey = `${appId}:${req.url?.split('?')[0] ?? 'unknown'}`
+        if (
+          !checkRateLimit(
+            limitKey,
+            opts.rateLimit.windowMs,
+            opts.rateLimit.maxRequests
+          )
+        ) {
+          res.setHeader(
+            'Retry-After',
+            String(Math.ceil(opts.rateLimit.windowMs / 1000))
+          )
+          sendError(res, 429, 'Rate limit exceeded', requestId)
+          return
+        }
+      }
+
+      const authReq = req as AuthenticatedRequest
+      authReq.requestId = requestId
+      authReq.tenant = tenant
+      authReq.appId = appId
+    } else {
+      ;(req as any).requestId = requestId
+    }
 
     try {
       await handler(req, res)
     } catch (err) {
-      console.error(`[API Error] requestId=${requestId}`, err)
+      const safeMsg =
+        err instanceof Error ? err.message : 'Unknown error'
+      console.error(
+        `[API Error] requestId=${requestId} error=${safeMsg}`
+      )
       sendError(res, 500, 'Internal server error', requestId)
     }
   }

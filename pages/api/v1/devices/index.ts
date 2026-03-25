@@ -1,22 +1,24 @@
 /**
  * @file index.ts
  * @brief Device list API - GET /api/v1/devices
- * @version 1.0.0
+ * @version 1.1.0
  * @date 2026-03-25
  */
 import { NextApiRequest, NextApiResponse } from 'next'
 
-import { withApiMiddleware, sendSuccess } from '../../../../lib/api/middleware'
+import { fetchDevices } from '../../../../lib/api/iot-adapter'
 import {
-  Device,
-  DeviceListParams,
-  PaginatedResult
-} from '../../../../lib/api/types'
+  AuthenticatedRequest,
+  withApiMiddleware,
+  sendSuccess
+} from '../../../../lib/api/middleware'
+import { DeviceListParams } from '../../../../lib/api/types'
 
 async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ): Promise<void> {
+  const authReq = req as AuthenticatedRequest
   const {
     page = '1',
     pageSize = '20',
@@ -31,16 +33,8 @@ async function handler(
     keyword
   }
 
-  // TODO: Replace with actual data source (database / IoT platform)
-  const result: PaginatedResult<Device> = {
-    items: [],
-    total: 0,
-    page: params.page,
-    pageSize: params.pageSize,
-    totalPages: 0
-  }
-
-  sendSuccess(res, result, (req as any).requestId)
+  const result = await fetchDevices(params, authReq.tenant.allowedDeviceIds)
+  sendSuccess(res, result, authReq.requestId)
 }
 
 export default withApiMiddleware(handler, {
